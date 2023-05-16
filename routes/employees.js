@@ -5,7 +5,11 @@ const router = express.Router();
 const { Employee } = require("../models");
 const yup = require("yup");
 
-const { validateSchema, loginSchema } = require("../validation/employee");
+const {
+  validateSchema,
+  loginSchema,
+  getEmployeeChema,
+} = require("../validation/employee");
 const encodeToken = require("../helpers/jwtHelper");
 
 const ObjectId = require("mongodb").ObjectId;
@@ -17,50 +21,142 @@ const ObjectId = require("mongodb").ObjectId;
 // Methods: POST / PATCH / GET / DELETE / PUT
 
 // GET ALL DATA
-router.get("/", async (req, res, next) => {
-  try {
-    let data = await Employee.find();
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error });
-  }
-});
-
-//GET A DATA
-// router.get("/:id", async (req, res, next) => {
-//   const validationSchema = yup.object().shape({
-//     params: yup.object({
-//       id: yup
-//         .string()
-//         .test(
-//           "validate ObjectId",
-//           "${path} is not a valid ObjectId",
-//           (value) => {
-//             return ObjectId.isValid(value);
-//           }
-//         ),
-//     }),
-//   });
-
-//   validationSchema
-//     .validate({ params: req.params }, { abortEarly: false })
-//     .then(async () => {
-//       const itemId = req.params.id;
-//       let found = await Employee.findById(itemId);
-//       if (found) {
-//         return res.status(200).json({ oke: true, result: found });
-//       }
-//       return res.status(410).json({ oke: false, message: "Object not found" });
-//     })
-//     .catch((err) => {
-//       return res.status(400).json({
-//         type: err.name,
-//         errors: err.errors,
-//         message: err.message,
-//         provider: "Yup",
-//       });
-//     });
+// router.get("/", async (req, res, next) => {
+//   try {
+//     let data = await Employee.find();
+//     res.status(200).json(data);
+//   } catch (error) {
+//     res.status(500).json({ error: error });
+//   }
 // });
+
+// Get all on Multiple conditions
+router.get(
+  "/",
+
+  async (req, res, next) => {
+    try {
+      const {
+        Locked,
+        email,
+        firstName,
+        lastName,
+        phoneNumber,
+        birthdayFrom,
+        birthdayTo,
+        address,
+        skip,
+        limit,
+      } = req.query;
+
+      let fromDate = null;
+      if (birthdayFrom) {
+        fromDate = new Date(birthdayFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        if (isNaN(fromDate.getTime())) {
+          throw new Error("Invalid date format for birthdayFrom");
+        }
+      }
+
+      let toDate = null;
+      if (birthdayTo) {
+        const tempToDate = new Date(birthdayTo);
+        toDate = new Date(tempToDate.setDate(tempToDate.getDate() + 1));
+        toDate.setHours(0, 0, 0, 0);
+        if (isNaN(toDate.getTime())) {
+          throw new Error("Invalid date format for birthdayTo");
+        }
+      }
+
+      const query = {
+        $expr: {
+          $and: [
+            Locked && { $eq: ["$Locked", Locked] },
+            email && {
+              $regexMatch: { input: "$email", regex: email, options: "i" },
+            },
+            firstName && {
+              $regexMatch: {
+                input: "$firstName",
+                regex: firstName,
+                options: "i",
+              },
+            },
+            lastName && {
+              $regexMatch: {
+                input: "$lastName",
+                regex: lastName,
+                options: "i",
+              },
+            },
+            fromDate && { $gte: ["$birthday", fromDate] },
+            toDate && { $lte: ["$birthday", toDate] },
+            address && {
+              $regexMatch: {
+                input: "$address",
+                regex: address,
+                options: "i",
+              },
+            },
+            phoneNumber && {
+              $regexMatch: {
+                input: "$phoneNumber",
+                regex: phoneNumber,
+                options: "i",
+              },
+            },
+          ].filter(Boolean),
+        },
+      };
+
+      let results = await Employee.find(query)
+        .sort({ Locked: 1 })
+        .skip(skip)
+        .limit(limit);
+
+      let amountResults = await Employee.countDocuments(query);
+      res.json({ results: results, amountResults: amountResults });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  }
+);
+
+// GET A DATA
+router.get("/:id", async (req, res, next) => {
+  const validationSchema = yup.object().shape({
+    params: yup.object({
+      id: yup
+        .string()
+        .test(
+          "validate ObjectId",
+          "${path} is not a valid ObjectId",
+          (value) => {
+            return ObjectId.isValid(value);
+          }
+        ),
+    }),
+  });
+
+  validationSchema
+    .validate({ params: req.params }, { abortEarly: false })
+    .then(async () => {
+      const itemId = req.params.id;
+      let found = await Employee.findById(itemId);
+      if (found) {
+        return res.status(200).json({ oke: true, result: found });
+      }
+      return res.status(410).json({ oke: false, message: "Object not found" });
+    })
+    .catch((err) => {
+      return res.status(400).json({
+        type: err.name,
+        errors: err.errors,
+        message: err.message,
+        provider: "Yup",
+      });
+    });
+});
 // POST DATA
 router.post("/", async (req, res, next) => {
   const validationSchema = yup.object({
@@ -199,7 +295,7 @@ router.post(
     } catch (err) {
       res.status(401).json({
         statusCode: 401,
-        message: "Unauthorized",
+        message: "Login Unsuccessful",
       });
     }
   }

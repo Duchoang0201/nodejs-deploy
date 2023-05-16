@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { Schema, model } = mongoose;
+const bcrypt = require("bcryptjs");
 
 const customerSchema = Schema(
   {
@@ -16,6 +17,8 @@ const customerSchema = Schema(
       },
       required: [true, "email is required"],
     },
+    password: { type: String, required: true },
+
     phoneNumber: {
       type: String,
       validate: {
@@ -29,11 +32,44 @@ const customerSchema = Schema(
     },
     address: { type: String, require: true },
     birthday: { type: Date },
+    Locked: { type: Boolean },
+    createdDate: {
+      type: Date,
+    },
+    createdBy: { type: Object },
+    imageUrl: { type: String },
+    updatedDate: {
+      type: Date,
+    },
+    updatedBy: { type: Object },
+    note: { type: String },
   },
   {
     versionKey: false,
   }
 );
+
+// customerSchema.pre("save", async function (next) {
+//   try {
+//     // generate salt key
+//     const salt = await bcrypt.genSalt(10); // 10 ký tự
+//     // generate password = salt key + hash key
+//     const hashPass = await bcrypt.hash(this.password, salt);
+//     // override password
+//     this.password = hashPass;
+//     next();
+//   } catch (err) {
+//     next(err);
+//   }
+// });
+
+customerSchema.methods.isValidPass = async function (pass) {
+  try {
+    return await bcrypt.compare(pass, this.password);
+  } catch (err) {
+    throw new Error(err);
+  }
+};
 
 const Customer = model("Customer", customerSchema);
 module.exports = Customer;

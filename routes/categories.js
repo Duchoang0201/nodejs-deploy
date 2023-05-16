@@ -4,52 +4,71 @@ const { Category } = require("../models");
 const yup = require("yup");
 const {
   validateSchema,
-  categoryIdSchema,
   categoryBodySchema,
+  categoryIdSchema,
 } = require("../validation/category");
 
-//Get ALL DATA
+// Get ALL DATA
+// router.get("/", async (req, res, next) => {
+//   try {
+//     let results = await Category.find();
+//     res.json(results);
+//   } catch (error) {
+//     res.status(500);
+//   }
+// });
+
+// Get all on Multiple conditions
 router.get("/", async (req, res, next) => {
   try {
-    let results = await Category.find();
-    res.json(results);
+    const { active, isDeleted, name, description, skip, limit } = req.query;
+
+    const query = {
+      $and: [
+        active === "true" ? { active: true, isDeleted: false } : null,
+        active === "false" ? { active: false, isDeleted: false } : null,
+        isDeleted === "true" ? { isDeleted: true } : null,
+        name ? { name: { $regex: new RegExp(name, "i") } } : null,
+        description
+          ? { description: { $regex: new RegExp(description, "i") } }
+          : null,
+      ].filter(Boolean),
+    };
+
+    let results = await Category.find(query)
+      .sort({ isDeleted: 1 })
+      .skip(Number(skip))
+      .limit(Number(limit));
+
+    let amountResults = await Category.countDocuments(query);
+
+    res.json({ results, amountResults });
   } catch (error) {
-    res.status(500);
+    res.status(500).json({ ok: false, error });
   }
 });
 
-//Get a DATA
-router.get(
-  "/:id",
-  validateSchema(categoryIdSchema),
-  async function (req, res, next) {
-    const id = req.params.id;
-
-    let found = await Category.findById(id);
-
-    if (found) {
-      return res.send({ ok: true, result: found });
-    }
-
-    return res.send({ ok: false, message: "Object not found" });
-  }
-);
-
 //CREATE DATA
-router.post(
-  "/",
-  validateSchema(categoryBodySchema),
-  async function (req, res, next) {
-    try {
+router.post("/", validateSchema(categoryBodySchema), async (req, res, next) => {
+  try {
+    const { name } = req.body;
+
+    const categoryExists = await Category.findOne({ name });
+
+    if (categoryExists) {
+      return res
+        .status(400)
+        .send({ oke: false, message: "Category already exists" });
+    } else {
       const newItem = req.body;
       const data = new Category(newItem);
       let result = await data.save();
-      return res.send({ oke: true, message: "Created", result });
-    } catch (error) {
-      return res.status(500).json({ error: error });
+      return res.status(200).send({ oke: true, message: "Created", result });
     }
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
-);
+});
 
 //DELETE DATA
 
@@ -76,6 +95,7 @@ router.delete(
 router.patch(
   "/:id",
   validateSchema(categoryIdSchema),
+  validateSchema(categoryBodySchema),
   async function (req, res, next) {
     try {
       const itemId = req.params.id;

@@ -19,7 +19,11 @@ const actionRouter = require("./routes/action");
 const categoriesRouter = require("./routes/categories");
 const ordersRouter = require("./routes/orders");
 const questionsRouter = require("./routes/questions");
+
 const uploadRouter = require("./routes/upload");
+
+const conversationsRouter = require("./routes/conversation");
+const messagesRouter = require("./routes/messages");
 // Routes for writting in file
 
 //test mongoDB
@@ -45,6 +49,7 @@ app.use(logger("dev"));
 app.use(express.json()); //khả năng xử lý với Json ( cần thiết)
 app.use(express.urlencoded({ extended: false })); //Làm cho đường dẫn trở nên an toàn ( ví dụ dấu cách chuyển thành % vd: NGUYEN VAN -> NGUYEN%VAN)
 app.use(cookieParser());
+
 app.use(express.static(path.join(__dirname, "public")));
 
 //Export API
@@ -86,6 +91,8 @@ app.use("/action", actionRouter);
 app.use("/categories", categoriesRouter);
 app.use("/orders", ordersRouter);
 app.use("/questions", questionsRouter);
+app.use("/conversations", conversationsRouter);
+app.use("/messages", messagesRouter);
 
 app.use("/upload", uploadRouter);
 

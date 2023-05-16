@@ -8,6 +8,7 @@ var app = require("../app");
 var debug = require("debug")("backend-express:server");
 var http = require("http");
 const socketIO = require("socket.io");
+const { Employee, Message } = require("../models/Message");
 
 /**
  * Get port from environment and store in Express.
@@ -21,20 +22,86 @@ app.set("port", port);
  */
 
 var server = http.createServer(app);
-const io = socketIO(server);
+// const io = socketIO(server, {
+//   cors: {
+//     origin: "http://localhost:8888",
+//     methods: ["GET", "POST"],
+//   },
+// });
+
+const io = require("socket.io")(8888, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"],
+  },
+});
+
+// io.listen(3000);
+
+let users = []; //Get list of users are active (  login successfully)
+
+// users.some check exist user, if get new user not exist in users[array] => push to users[array]
+const addUser = (userId, socketId) => {
+  !users.some((user) => user.userId === userId) &&
+    users.push({ userId, socketId });
+};
+
+const removeUser = (socketId) => {
+  users = users.filter((user) => user.socketId !== socketId);
+};
+
+const getUser = (userId) => {
+  return users.find((user) => user.userId === userId);
+};
 
 io.on("connection", (socket) => {
-  console.log("A client connected.");
+  // when connect
+  console.log("a user connected.");
 
-  socket.on("on-chat", (data) => {
-    console.log(`Received message: ${data.message}`);
-    io.emit("user-chat", data);
+  // take userId and socketId from user
+  socket.on("addUser", (userId) => {
+    addUser(userId, socket.id);
+    io.emit("getUsers", users);
   });
 
-  // socket.on('disconnect', () => {
-  //   console.log('A client disconnected.');
-  // });
+  // Emit userOnline event when a user connects
+  io.emit("userOnline", {
+    users,
+  });
+
+  // send and get message
+  socket.on("sendMessage", ({ senderId, receiverId, text }) => {
+    const user = getUser(receiverId);
+
+    // io.to().emit() to send 1 client
+    if (user) {
+      io.to(user.socketId).emit("getMessage", {
+        senderId,
+        text,
+      });
+    } else {
+      io.emit("getMessage", {
+        data: null,
+      });
+    }
+  });
+
+  // when disconnect
+  socket.on("disconnect", () => {
+    console.log("a user disconnected!");
+    removeUser(socket.id);
+    io.emit("getUsers", users);
+
+    // Emit userOnline event when a user disconnects
+    setTimeout(() => {
+      io.emit("userOnline", {
+        users,
+      });
+    }, 2000);
+  });
 });
+
+//send and get messages
 
 /**
  * Listen on provided port, on all network interfaces.

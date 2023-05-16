@@ -2,48 +2,35 @@
 const { CONNECTION_STRING, DATABASE_NAME } = require("../constants/dbSettings");
 // Khai báo thư viện MongoClient
 const { MongoClient, ObjectId } = require("mongodb");
-const mongoose = require("mongoose");
-const path = require("path");
 
 // INSERT: Thêm mới (một)
 // insertDocument({ name: 'Peter', email: 'peter@gmail.com' }, 'employees').then((result) => {}).catch(err => {});
 
 function insertDocument(data, collectionName) {
   return new Promise((resolve, reject) => {
-    mongoose
-      .model(collectionName)
-      .create(data)
-      .then((result) => {
-        resolve({ result: result });
+    MongoClient.connect(CONNECTION_STRING, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    })
+      .then((client) => {
+        const dbo = client.db(DATABASE_NAME);
+        const collection = dbo.collection(collectionName);
+        collection
+          .insertOne(data)
+          .then((result) => {
+            client.close();
+            resolve({ data: data, result: result });
+          })
+          .catch((err) => {
+            client.close();
+            reject(err);
+          });
       })
       .catch((err) => {
         reject(err);
       });
   });
 }
-
-// function insertDocument(data, collectionName) {
-//   return new Promise((resolve, reject) => {
-//     MongoClient.connect(CONNECTION_STRING, { useNewUrlParser: true, useUnifiedTopology: true })
-//       .then((client) => {
-//         const dbo = client.db(DATABASE_NAME);
-//         const collection = dbo.collection(collectionName);
-//         collection
-//           .insertOne(data)
-//           .then((result) => {
-//             client.close();
-//             resolve({ data: data, result: result });
-//           })
-//           .catch((err) => {
-//             client.close();
-//             reject(err);
-//           });
-//       })
-//       .catch((err) => {
-//         reject(err);
-//       });
-//   });
-// }
 
 // ----------------------------------------------------------------------------
 // INSERT: Thêm mới (nhiều)
@@ -84,7 +71,7 @@ function updateDocument(id, data, collectionName) {
       .then((client) => {
         const dbo = client.db(DATABASE_NAME);
         const collection = dbo.collection(collectionName);
-        const query = { _id: ObjectId(id) };
+        const query = { _id: new ObjectId(id) };
         collection
           .findOneAndUpdate(query, { $set: data })
           .then((result) => {
@@ -190,12 +177,25 @@ function deleteDocuments(query, collectionName) {
 // FIND: Tìm kiếm (id)
 function findDocument(id, collectionName) {
   return new Promise((resolve, reject) => {
-    const collection = mongoose.model(collectionName);
-    const query = { _id: id };
-    collection
-      .findOne(query)
-      .then((result) => {
-        resolve(result);
+    MongoClient.connect(CONNECTION_STRING, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    })
+      .then((client) => {
+        const dbo = client.db(DATABASE_NAME);
+        const collection = dbo.collection(collectionName);
+        const query = { _id: new ObjectId(id) };
+        collection
+          .findOne(query)
+          .then((result) => {
+            resolve(result);
+          })
+          .catch((err) => {
+            reject(err);
+          })
+          .finally(() => {
+            client.close();
+          });
       })
       .catch((err) => {
         reject(err);
@@ -257,13 +257,6 @@ function findDocuments(
   });
 }
 
-function toSafeFileName(fileName) {
-  const fileInfo = path.parse(fileName);
-  const safeFileName =
-    fileInfo.name.replace(/[^a-z0-9]/gi, "-").toLowerCase() + fileInfo.ext;
-  return `${Date.now()}-${safeFileName}`;
-}
-
 module.exports = {
   insertDocument,
   insertDocuments,
@@ -273,5 +266,4 @@ module.exports = {
   deleteDocuments,
   findDocument,
   findDocuments,
-  toSafeFileName,
 };

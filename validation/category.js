@@ -14,7 +14,23 @@ const validateSchema = (schema) => async (req, res, next) => {
   }
 };
 
-const categoryIdSchema = yup.object({
+const categoryBodySchema = yup.object().shape({
+  query: yup.object({
+    name: yup.string(),
+    description: yup.string(),
+    skip: yup
+      .string()
+      .matches(/^\d+$/, "skip is not valid Number")
+      .min(0)
+      .max(1000),
+    limit: yup
+      .string()
+      .matches(/^\d+$/, "limit is not valid Number")
+      .min(0)
+      .max(1000),
+  }),
+});
+const categoryIdSchema = yup.object().shape({
   params: yup.object({
     id: yup
       .string()
@@ -23,14 +39,9 @@ const categoryIdSchema = yup.object({
       }),
   }),
 });
-const categoryBodySchema = yup.object({
-  body: yup.object({
-    name: yup.string().required(),
-    description: yup.string(),
-  }),
-});
+
 module.exports = {
   validateSchema,
-  categoryIdSchema,
   categoryBodySchema,
+  categoryIdSchema,
 };

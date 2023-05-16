@@ -39,6 +39,11 @@ const employeeSchema = new Schema(
     password: { type: String, required: true },
     address: { type: String, required: true },
     birthday: { type: Date },
+    imageUrl: { type: String },
+    LastActivity: { type: Date },
+    isAdmin: { type: Boolean },
+    Locked: { type: Boolean },
+    note: { type: String },
   },
   {
     versionKey: false,
