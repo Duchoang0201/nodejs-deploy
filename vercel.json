@@ -1,3 +1,4 @@
 {
-  "framework": "node-server"
+  "framework": "node-server",
+  "files": ["uploads/**"]
 }
