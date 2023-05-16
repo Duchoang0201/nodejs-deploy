@@ -1,4 +1,4 @@
 {
   "framework": "node-server",
-  "files": ["uploads/**"]
+  "files": ["public/**"]
 }
